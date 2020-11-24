@@ -2,7 +2,7 @@ import os
 
 from flask import (
     Flask, jsonify, session, g, redirect, url_for,
-    render_template
+    render_template, request
 )
 from flask_pymongo import PyMongo
 from flask_github import GitHub
