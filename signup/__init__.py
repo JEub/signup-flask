@@ -57,6 +57,11 @@ def create_app(test_config=None):
 
         return render_template('home.html', user=users, projects=projects)
     
+    @github.access_token_getter
+    def token_getter():
+        user = g.user
+        if user is not None:
+            return user.get('github_access_token', None)
     
     @app.route('/github-callback')
     @github.authorized_handler
