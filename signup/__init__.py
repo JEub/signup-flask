@@ -2,7 +2,7 @@ import os
 
 from flask import (
     Flask, jsonify, session, g, redirect, url_for,
-    render_template, request
+    render_template, request, abort
 )
 from flask_pymongo import PyMongo
 from flask_github import GitHub
@@ -108,5 +108,51 @@ def create_app(test_config=None):
         session.pop('user_id', None)
         return redirect(url_for('index'))
 
-    
+    @app.route('/projects/all')
+    def projects():
+        projects = [proj for proj in mongo.db.projects.find()]
+        return jsonify(projects)
+
+    @app.route('/projects/<name:str>')
+    def get_project(name):
+        project = mongo.db.projects.find_one({'project_name': name})
+        return jsonify(project)
+
+    @app.route('/projects/create', method=['POST'])
+    def create_project():
+        if session.get('user_id', None) is None:
+            return abort(401, 'Log in to post a new project.')
+        
+        body = request.get_json()
+        # TODO validate project data exists in form request
+
+        # TODO verify project name is unique or redirect
+
+        # TODO return and redirect to posted project details
+
+    @app.route('/projects/<name:str>/update', method=['POST'])
+    def update_project(name):
+        if session.get('user_id', None) is None:
+            return abort(401, 'Log in to update a project.')
+        
+        project = mongo.db.projects.find_one({'project_name', name})
+
+        if project is None:
+            return abort(400, 'Project not found.')
+        elif project['owner_id'] != session['user_id']:
+            return abort(401, 'You are not the project owner.')
+        
+        body = request.get_json()
+
+        for key in body:
+            if (key in project.keys()) and (key not in ['project_name',]):
+                project[key] = body[key]
+        
+        mongo.db.projects.replace_one(
+            {'project_name': project['project_name']},
+            project, upsert=True
+            )
+        
+        return jsonify(project), 200
+
     return app
