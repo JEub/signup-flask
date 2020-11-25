@@ -2,7 +2,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SignUp {% if project %} - {{ project.name }} {% endif %}</title>
+    <title>SignUp{% block title %}{% endblock %}</title>
 
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
     
@@ -10,18 +10,18 @@
 <body>
 
     <div class="container-fluid">
-        <nav class="navbar navbar-expand-lg navbar-dark bg-secondary">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
             <span class="navbar-brand">SignUp!</span>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
-                <div class="navbar-nav">
+                <div class="navbar-nav ml-auto">
                     {% if not user %}
-                    <a class="nav-item nav-link disabled" href="{{ url_for('login') }}">Login</a>
+                    <a class="nav-item nav-link" href="{{ url_for('login') }}">Login</a>
                     {% else %}
-                    <a class="nav-item nav-link disabled" href="#">Logout</a>
+                    <a class="nav-item nav-link" href="{{ url_for('logout') }}">Logout</a>
                     {% endif %}
                 </div>
             </div>

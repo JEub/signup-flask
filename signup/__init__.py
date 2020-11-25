@@ -45,14 +45,15 @@ def create_app(test_config=None):
     def before_request():
         g.user = None
         if 'user_id' in session:
-            g.user = mongo.db.user.find({'_id': session['user_id']})
+            g.user = mongo.db.user.find_one({'user_id': session['user_id']})
         
     @app.route('/')
     def index():
         uid = session.get('user_id', None)
         users = None
         if uid is not None:
-            users = mongo.db.user.find({'_id': session.get('user_id')})
+            users = mongo.db.user.find_one({'user_id': session.get('user_id')})
+            print(users)
         projects = mongo.db.project.find()
 
         return render_template('home.html', user=users, projects=projects)
@@ -72,19 +73,27 @@ def create_app(test_config=None):
 
         user = mongo.db.user.find_one({'github_access_token': access_token})
         if user is None:
-            github_user = github.get('/user')
+            
             user = {
-                'github_access_token': access_token,
-                '_id': github_user['login'],
-                'email': github_user['email'],
-                'github_profile': github_user['html_url'],
-                'name': github_user['name'] 
+                'github_access_token': access_token
             }
-            mongo.db.user.insert_one(user)
         
+        user['github_access_token'] = access_token
+
         g.user = user
 
-        session['user_id'] = user['_id']
+        if user.get('user_id', None) is None:
+            github_user = github.get('/user')
+
+            user['user_id'] = github_user['login']
+            user['email'] = github_user['email']
+            user['profile'] = github_user['html_url']
+            user['name'] = github_user['name']
+
+            mongo.db.user.replace_one({"user_id": user['user_id']}, user, upsert=True)
+
+        g.user = user
+        session['user_id'] = user['user_id']
         return redirect(next_url)
     
     @app.route('/login')
