@@ -2,10 +2,16 @@ import os
 
 from flask import (
     Flask, jsonify, session, g, redirect, url_for,
-    render_template, request, abort
+    render_template, request, abort, flash
 )
 from flask_pymongo import PyMongo
 from flask_github import GitHub
+
+from slugify import slugify
+
+from .projects import project_schema
+
+from .mongoflask import MongoJSONEncoder, ObjectIdConverter
 
 
 def create_app(test_config=None):
@@ -17,6 +23,8 @@ def create_app(test_config=None):
         GITHUB_CLIENT_ID=os.environ.get('GITHUB_CLIENT_ID'),
         GITHUB_CLIENT_SECRET=os.environ.get("GITHUB_SECRET_KEY")
     )
+    app.json_encoder = MongoJSONEncoder
+    app.url_map.converters['objectid'] = ObjectIdConverter
 
     if test_config is None:
         # load the instance config, if it exists, when not testing
@@ -113,29 +121,62 @@ def create_app(test_config=None):
         projects = [proj for proj in mongo.db.projects.find()]
         return jsonify(projects)
 
-    @app.route('/projects/<name:str>')
-    def get_project(name):
-        project = mongo.db.projects.find_one({'project_name': name})
+    @app.route('/projects/<slug>')
+    def get_project(slug):
+        project = mongo.db.projects.find_one({'slug': slug})
         return jsonify(project)
 
-    @app.route('/projects/create', method=['POST'])
+    @app.route('/projects/create', methods=['GET', 'POST'])
     def create_project():
+
+        if request.method == 'GET':
+            return render_template('projectForm.html')
+
         if session.get('user_id', None) is None:
             return abort(401, 'Log in to post a new project.')
         
         body = request.get_json()
-        # TODO validate project data exists in form request
 
-        # TODO verify project name is unique or redirect
+        if body.get('project_name', None) is None:
+            return abort(400, 'project_name needed in body. None found.')
+        
+        slug = slugify(body['project_name'])
+        if mongo.db.projects.find_one({'slug': slug}) is not None:
+            flash(f'Project named {project_name} already exists.')
+            return redirect(url_for(get_project, slug=slug))
 
+        project = {
+            key: body[key] for key in body.keys()
+            if (key != 'comments') and (key in project_schema.keys())
+        }
+
+        project['slug'] = slug
+
+        for key in project_schema.keys():
+            if key not in project.keys():
+                if key in ['comments', 'members']:
+                    project[key] = []
+                else:
+                    project[key] = ""
+            
+            elif key in ['comments', 'members']:
+                if not isinstance(project[key], list):
+                    return abort(400, f'Invalid data type passed for {key}. Expected list.')
+            elif not isinstance(project[key], str):
+                return abort(400, f'Invalid data type passed for {key}. Expected string.')
+
+        mongo.db.projects.replace_one(project, project, upsert=True)
+        
         # TODO return and redirect to posted project details
+        flash('Project created successfully')
+        return redirect(url_for('projects'))
 
-    @app.route('/projects/<name:str>/update', method=['POST'])
-    def update_project(name):
+    @app.route('/projects/<slug>/update', methods=['POST'])
+    def update_project(slug):
         if session.get('user_id', None) is None:
             return abort(401, 'Log in to update a project.')
         
-        project = mongo.db.projects.find_one({'project_name', name})
+        project = mongo.db.projects.find_one({'slug', slug})
 
         if project is None:
             return abort(400, 'Project not found.')
@@ -154,5 +195,21 @@ def create_app(test_config=None):
             )
         
         return jsonify(project), 200
+
+    @app.route('/projects/<slug>/delete')
+    def delete_project(slug):
+        if session.get('user_id', None) is None:
+            return abort(401, 'Log in to delete a project.')
+
+        project = mongo.db.projects.find_one({'slug': slug})
+
+        if project is None:
+            return abort(400, 'Project not found.')
+        elif project['owner_id'] != session['user_id']:
+            return abort(401, 'You are not the project owner.')
+        else:
+            mongo.db.projects.delete_one({'_id': project['_id']})
+        
+        return 'Delete successful', 200
 
     return app

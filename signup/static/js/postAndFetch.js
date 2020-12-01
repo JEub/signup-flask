@@ -1,12 +1,12 @@
-let projectList = d3.select('#mainProjectList')
 
-function updateProjects(element){
-    var projects = fetch('/projects/all')
-        .then(res => res.json())
-        .then(data => projects = data);;
-    element.append('li').append('a')
-        .attr('href', `/projects/${projects.project_name}`)
-        .text(projects.project_name);
-}
+let projectList = d3.select('#mainProjectList');
+let projects = [];
+fetch('/projects/all')
+    .then(res => res.json())
+    .then(data => projects = data);
 
-updateProjects(projectList);
+projects.forEach(function(project) {
+    console.log(project);
+    projectList.append('li').append('a').text(project.project_name);
+    });
+        //.attr('xlink:href', `/projects/${project.project_name}`)
