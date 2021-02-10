@@ -1,4 +1,4 @@
-# Signup App
+# Signup App (Flask)
 
 A simple application which allowing users to sign up for a project team. 
 
